@@ -1,0 +1,25 @@
+POST http://localhost:9000/clients HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Janie",
+    "email": "janie@j.com"
+}
+
+###
+POST http://localhost:9000/accounts HTTP/1.1
+Content-Type: application/json
+
+{
+    "client_id": "2590f27f-80ec-4704-956c-1e186e2112f2"
+}
+
+###
+POST http://localhost:9000/transactions HTTP/1.1
+Content-Type: application/json
+
+{
+    "account_id_from": "744c41ed-9534-4336-adc7-60982c9c0b89",
+    "account_id_to": "ee751059-9529-44c2-a237-1b78418eac90",
+    "amount": 100
+}

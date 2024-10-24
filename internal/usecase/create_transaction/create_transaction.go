@@ -7,8 +7,8 @@ import (
 )
 
 type CreateTransactionInputDTO struct {
-	AccountIDFrom string
-	AccountIDTo   string
+	AccountIDFrom string `json:"account_id_from"`
+	AccountIDTo   string `json:"account_id_to"`
 	Amount        float64
 }
 

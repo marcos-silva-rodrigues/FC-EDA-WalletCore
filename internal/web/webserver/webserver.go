@@ -3,8 +3,8 @@ package webserver
 import (
 	"net/http"
 
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 type WebServer struct {
@@ -14,13 +14,11 @@ type WebServer struct {
 }
 
 func NewWebServer(
-	router chi.Router,
-	handlers map[string]http.HandlerFunc,
 	webServerPort string,
 ) *WebServer {
 	return &WebServer{
-		Router:        router,
-		Handlers:      handlers,
+		Router:        chi.NewRouter(),
+		Handlers:      make(map[string]http.HandlerFunc),
 		WebServerPort: webServerPort,
 	}
 }
