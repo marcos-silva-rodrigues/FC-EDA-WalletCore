@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/marcos-silva-rodrigues/wallet-ms/internal/web"
 	"github.com/marcos-silva-rodrigues/wallet-ms/internal/web/webserver"
 	"github.com/marcos-silva-rodrigues/wallet-ms/pkg/events"
+	"github.com/marcos-silva-rodrigues/wallet-ms/pkg/uow"
 )
 
 func main() {
@@ -29,13 +31,30 @@ func main() {
 
 	clientDB := database.NewClientDB(db)
 	accountDB := database.NewAccountDB(db)
-	transactionDB := database.NewTransactionDB(db)
+
+	ctx := context.Background()
+	uow := uow.NewUow(ctx, db)
+
+	uow.Register("ClientGateway", func(tx *sql.Tx) interface{} {
+		return database.NewClientDB(db)
+	})
+
+	uow.Register("AccountGateway", func(tx *sql.Tx) interface{} {
+		return database.NewAccountDB(db)
+	})
+
+	uow.Register("TransactionGateway", func(tx *sql.Tx) interface{} {
+		return database.NewTransactionDB(db)
+	})
 
 	createClientUseCase := createclient.NewCreateClientUseCase(clientDB)
 	createAccountUseCase := createaccount.NewCreateAccountUseCase(accountDB, clientDB)
 
 	createTransactionUseCase := createtransaction.NewCreateTransactionUseCase(
-		transactionDB, accountDB, eventDispatcher, transactionEventCreated)
+		eventDispatcher,
+		transactionEventCreated,
+		uow,
+	)
 
 	webserver := webserver.NewWebServer(":9000")
 
