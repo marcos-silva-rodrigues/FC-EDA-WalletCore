@@ -22,21 +22,31 @@ type CreateTransactionOutputDTO struct {
 	Amount        float64
 }
 
+type BalanceUpdatedOutputDTO struct {
+	AccountIDFrom        string  `json:"account_id_from"`
+	AccountIDTo          string  `json:"account_id_to"`
+	BalanceAccountIDFrom float64 `json:"balance_account_id_from"`
+	BalanceAccountIDTo   float64 `json:"balance_account_id_to"`
+}
+
 type CreateTransactionUseCase struct {
 	Uow                uow.UowInterface
 	EventDispatcher    events.EventDispatcherInterface
 	TransactionCreated events.EventInterface
+	BalanceUpdated     events.EventInterface
 }
 
 func NewCreateTransactionUseCase(
 	eventDispatcher events.EventDispatcherInterface,
 	transactionCreated events.EventInterface,
+	balanceUpdated events.EventInterface,
 	uow uow.UowInterface,
 ) *CreateTransactionUseCase {
 	return &CreateTransactionUseCase{
 		Uow:                uow,
 		EventDispatcher:    eventDispatcher,
 		TransactionCreated: transactionCreated,
+		BalanceUpdated:     balanceUpdated,
 	}
 }
 
@@ -45,6 +55,7 @@ func (uc *CreateTransactionUseCase) Execute(
 	input CreateTransactionInputDTO,
 ) (*CreateTransactionOutputDTO, error) {
 	output := &CreateTransactionOutputDTO{}
+	balanceUpdatedOutputDTO := &BalanceUpdatedOutputDTO{}
 
 	err := uc.Uow.Do(ctx, func(_ *uow.Uow) error {
 		accountGateway := uc.getAccountGateway(ctx)
@@ -90,6 +101,11 @@ func (uc *CreateTransactionUseCase) Execute(
 		output.AccountIDFrom = accountFrom.ID
 		output.AccountIDTo = accountTo.ID
 		output.Amount = input.Amount
+
+		balanceUpdatedOutputDTO.AccountIDFrom = accountFrom.ID
+		balanceUpdatedOutputDTO.AccountIDTo = accountTo.ID
+		balanceUpdatedOutputDTO.BalanceAccountIDFrom = accountFrom.Balance
+		balanceUpdatedOutputDTO.BalanceAccountIDTo = accountTo.Balance
 		return nil
 	})
 
@@ -99,6 +115,9 @@ func (uc *CreateTransactionUseCase) Execute(
 
 	uc.TransactionCreated.SetPayload(output)
 	uc.EventDispatcher.Dispatch(uc.TransactionCreated)
+
+	uc.BalanceUpdated.SetPayload(balanceUpdatedOutputDTO)
+	uc.EventDispatcher.Dispatch(uc.BalanceUpdated)
 
 	return output, nil
 }

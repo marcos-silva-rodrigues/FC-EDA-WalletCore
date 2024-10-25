@@ -5,15 +5,18 @@ import (
 	"database/sql"
 	"fmt"
 
+	ckafka "github.com/confluentinc/confluent-kafka-go/kafka"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/marcos-silva-rodrigues/wallet-ms/internal/database"
 	"github.com/marcos-silva-rodrigues/wallet-ms/internal/event"
+	"github.com/marcos-silva-rodrigues/wallet-ms/internal/event/handler"
 	createaccount "github.com/marcos-silva-rodrigues/wallet-ms/internal/usecase/create_account"
 	createclient "github.com/marcos-silva-rodrigues/wallet-ms/internal/usecase/create_client"
 	createtransaction "github.com/marcos-silva-rodrigues/wallet-ms/internal/usecase/create_transaction"
 	"github.com/marcos-silva-rodrigues/wallet-ms/internal/web"
 	"github.com/marcos-silva-rodrigues/wallet-ms/internal/web/webserver"
 	"github.com/marcos-silva-rodrigues/wallet-ms/pkg/events"
+	"github.com/marcos-silva-rodrigues/wallet-ms/pkg/kafka"
 	"github.com/marcos-silva-rodrigues/wallet-ms/pkg/uow"
 )
 
@@ -25,9 +28,18 @@ func main() {
 
 	defer db.Close()
 
+	configMap := ckafka.ConfigMap{
+		"bootstrap.servers": "kafka:29092",
+		"group.id":          "wallet",
+	}
+
+	kafkaProducer := kafka.NewKafkaProducer(&configMap)
+	transactionCreatedHandler := handler.NewTransactionCreatedKakfaHandler(kafkaProducer)
+	balanceUpdatedHandler := handler.NewBalanceUpdatedKakfaHandler((kafkaProducer))
+
 	eventDispatcher := events.NewEventDispatcher()
-	transactionEventCreated := event.NewTransactionCreated()
-	// eventDispatcher.Register("TransactionCreated", handler)
+	eventDispatcher.Register("TransactionCreated", transactionCreatedHandler)
+	eventDispatcher.Register("BalanceUpdated", balanceUpdatedHandler)
 
 	clientDB := database.NewClientDB(db)
 	accountDB := database.NewAccountDB(db)
@@ -50,9 +62,12 @@ func main() {
 	createClientUseCase := createclient.NewCreateClientUseCase(clientDB)
 	createAccountUseCase := createaccount.NewCreateAccountUseCase(accountDB, clientDB)
 
+	transactionEventCreated := event.NewTransactionCreated()
+	balanceUpdatedEvent := event.NewBalanceUpdated()
 	createTransactionUseCase := createtransaction.NewCreateTransactionUseCase(
 		eventDispatcher,
 		transactionEventCreated,
+		balanceUpdatedEvent,
 		uow,
 	)
 
